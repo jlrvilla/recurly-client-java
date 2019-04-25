@@ -43,7 +43,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
 public abstract class BaseClient {
-    class DateDeserializer implements JsonDeserializer<DateTime> {
+    private class DateDeserializer implements JsonDeserializer<DateTime> {
 
         @Override
         public DateTime deserialize(JsonElement element, Type arg1, JsonDeserializationContext arg2) throws JsonParseException {
@@ -67,6 +67,10 @@ public abstract class BaseClient {
     private String apiUrl;
 
     protected BaseClient(final String siteId, final String apiKey) {
+        this(siteId, apiKey, newHttpClient(apiKey));
+    }
+
+    protected BaseClient(final String siteId, final String apiKey, final OkHttpClient client) {
         if (siteId == null || siteId.isEmpty()) {
             throw new IllegalArgumentException("siteId cannot be null or empty");
         }
@@ -77,8 +81,12 @@ public abstract class BaseClient {
 
         this.siteId = siteId;
         this.apiKey = apiKey;
+        this.client = client;
+        this.apiUrl = API_URL;
+    }
 
-        final String authToken = Credentials.basic(this.apiKey, "");
+    private static OkHttpClient newHttpClient(final String apiKey) {
+        final String authToken = Credentials.basic(apiKey, "");
         final HeaderInterceptor headerInterceptor =
                 new HeaderInterceptor(authToken, Client.API_VERSION);
 
@@ -92,8 +100,7 @@ public abstract class BaseClient {
             httpClientBuilder.addInterceptor(logging);
         }
 
-        this.client = httpClientBuilder.build();
-        this.apiUrl = API_URL;
+        return httpClientBuilder.build();
     }
 
     private static OkHttpClient.Builder getUnsafeOkHttpClientBuilder() {
@@ -263,7 +270,7 @@ public abstract class BaseClient {
     }
 
     public void _setApiUrl(final String uri) {
-        System.out.println("[SECURITY WARNING] _SetApiUrl is for testing only and not supported in production.");
+        System.out.println("[SECURITY WARNING] _setApiUrl is for testing only and not supported in production.");
 
         if ("true".equals(System.getenv("RECURLY_INSECURE"))) {
             this.apiUrl = uri;
