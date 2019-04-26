@@ -1,16 +1,9 @@
 package com.recurly.v3;
 
+import com.recurly.v3.Resource;
 import com.recurly.v3.Request;
+import com.recurly.v3.JsonSerializer;
 import com.recurly.v3.http.HeaderInterceptor;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-
-import com.fatboyindustrial.gsonjodatime.Converters;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -43,24 +36,13 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
 public abstract class BaseClient {
-    private class DateDeserializer implements JsonDeserializer<DateTime> {
-
-        @Override
-        public DateTime deserialize(JsonElement element, Type arg1, JsonDeserializationContext arg2) throws JsonParseException {
-            final String string = element.getAsString();
-            final DateTimeFormatter formatter = ISODateTimeFormat.dateTimeParser();
-
-            return formatter.parseDateTime(string);
-        }
-    }
-
     private static final String API_URL = "https://partner-api.recurly.com/";
     private static final DateTimeFormatter DT_FORMATTER = ISODateTimeFormat.dateTimeParser();
 
     //private static OkHttpClient.Builder httpClientBuilder = new OkHttpClient.Builder();
     // TODO will want to use safe ^ version by default
     private static final OkHttpClient.Builder httpClientBuilder = getUnsafeOkHttpClientBuilder();
-    private static final Gson gson = Converters.registerDateTime(new GsonBuilder()).create();
+    private static final JsonSerializer jsonSerializer = new JsonSerializer();
     private final String apiKey;
     private final String siteId;
     private final OkHttpClient client;
@@ -183,7 +165,7 @@ public abstract class BaseClient {
                 System.out.println(responseBody);
             }
 
-            return processResponse(responseBody, resourceClass);
+            return jsonSerializer.deserialize(responseBody, resourceClass);
         }
     }
 
@@ -192,7 +174,7 @@ public abstract class BaseClient {
 
         final RequestBody requestBody = RequestBody.create(
             MediaType.parse("application/json; charset=utf-8"),
-            new Gson().toJson(body)
+            jsonSerializer.serialize(body)
         );
 
         if (queryParams != null) {
@@ -244,11 +226,6 @@ public abstract class BaseClient {
             default:
                 throw new RuntimeException("Invalid method (TODO: Make this a v3.resources.Error)");
         }
-    }
-
-    private <T> T processResponse(final String responseBody, final Type resourceClass) {
-        final Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new DateDeserializer()).create();
-        return gson.fromJson(responseBody, resourceClass);
     }
 
     protected String interpolatePath(final String path) {
